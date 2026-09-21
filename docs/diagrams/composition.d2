@@ -1,0 +1,30 @@
+direction: down
+
+client: "client-deployments/<client> (separate repo)" {
+  bootstrap: "_bootstrap/\nmodule \"terraform-state\""
+  env: "environments/{dev,staging,prod}/" {
+    backend: "backend.tf"
+    vpc: "module \"vpc\""
+    alb: "module \"alb\""
+    eks: "module \"eks-cluster\""
+    rds: "module \"rds-instance\""
+    vpc -> alb: "public_subnet_ids"
+    vpc -> eks: "private_subnet_ids"
+    vpc -> rds: "database_subnet_ids"
+  }
+}
+
+state: "S3 bucket + DynamoDB lock table" {shape: cylinder}
+
+library: "terraform-aws-module-library (this repo)" {
+  tag: "release tag v1.0.0"
+  modules: "aws/modules/<name>/\nversions / variables / main / outputs"
+  tag -> modules
+}
+
+aws: AWS account {shape: cloud}
+
+client.bootstrap -> state: "creates once per client"
+client.env.backend -> state: "remote state + locking"
+client.env -> library.tag: "source = git::...//aws/modules/<name>?ref=<tag>"
+client.env -> aws: "terraform apply"

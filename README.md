@@ -6,16 +6,9 @@ I built it as the starting kit for AWS consulting engagements: a client stack is
 
 ## Design
 
-```
-client-deployments/<client>/                 (separate repo per client, see docs/)
-  _bootstrap/  ── module "terraform-state" ──▶ S3 bucket + DynamoDB lock table
-  environments/{dev,staging,prod}/
-      backend.tf  ──▶ that S3 backend
-      main.tf     ── module "vpc" / "alb" / "eks-cluster" / ... ──┐
-                                                                    │ git::https://…//aws/modules/<name>?ref=<tag>
-terraform-aws-module-library/  (this repo) ◀────────────────────────┘
-  aws/modules/<name>/{versions,variables,main,outputs}.tf + README.md
-```
+![How a client stack composes library modules](docs/diagrams/composition.png)
+
+Each client gets its own deployment repo. A `_bootstrap/` root module uses `terraform-state` to create the S3 + DynamoDB backend once, and each environment directory points its `backend.tf` at it. Environment root modules pull library modules by git URL pinned to a release tag and wire them together through outputs.
 
 - **One resource family per module.** Modules are small and composable and wire together through outputs (for example, `vpc` subnet IDs flow into `alb`, `eks-cluster` and `rds-instance`).
 - **Same file layout everywhere**: `versions.tf` (Terraform >= 1.5.0, AWS provider >= 5.0, < 6.0), `variables.tf` (typed inputs with descriptions and `validation` blocks), `main.tf`, `outputs.tf`, and a `README.md` with usage examples and input/output tables.
